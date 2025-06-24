@@ -13,7 +13,7 @@ jiter==0.10.0
 jsonpointer==2.1
 lxml==5.2.1
 matplotlib==3.9.2
-mediapipe==0.10.0
+mediapipe==0.10.13
 mkl-service==2.4.0
 ml_dtypes==0.5.1
 openai==1.82.0
