@@ -118,7 +118,7 @@ def analyze_face(image_bgr):
 ## system prompt for LLM
 def system_prompt():
     return """
-        You are a commercial eyewear stylist.
+        You are a commercial eyewear stylist with extensive knowlendge and provide perfect designed recommendation.
 
         Based on the user's facial geometry, skin tone, and other parameters, recommend the most suitable frame style and at least two ideal color options. Use only the frame and color styles from the lists below.
 
@@ -157,5 +157,4 @@ def system_prompt():
         }
 
         """
-
 

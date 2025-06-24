@@ -20,7 +20,7 @@ app = FastAPI()
 # CORS setup (allow all origins or restrict to your domain)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],
+    allow_origins=["*"],  # Change to frontend domain in production now all urls are allowed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,7 +51,6 @@ def analyze(req: FaceRequest, request: Request):
         # Store result in session
         request.session["face_data"] = result
 
-        print(result)
         return result
 
     except Exception as e:
@@ -61,6 +60,35 @@ def analyze(req: FaceRequest, request: Request):
         )
 
 
+"""# post request end point to post data to LLM for the frame recommendation 
+@app.post("/recommend_frame")
+async def recommend_frame(request: Request):
+    face_data = request.session.get("face_data")
+
+    if not face_data:
+        return {"success": False, "error": "Face data not found. Please recapture."}
+
+    system_prompt_text = system_prompt()
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt_text},
+                {"role": "user", "content": str(face_data)}
+            ],
+            temperature=0.4
+        )
+
+        # ✅ Fixed way to access content
+        content = response.choices[0].message.content
+        print(content)  # Print to terminal
+        return {"success": True, "recommendation": content}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+"""
 # post request end point to post data to LLM for the frame recommendation 
 from fastapi.responses import JSONResponse
 import json
