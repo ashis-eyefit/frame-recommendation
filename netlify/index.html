@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Face Capture</title>
+  <style>
+    .branding-header {
+      display: flex;
+      flex-direction: column;         
+      align-items: center;            
+      justify-content: center;
+      margin: 30px auto;
+      text-align: center;
+    }
+
+    .branding-logo {
+      height: 120px;                   
+      width: auto;
+      margin-bottom: 10px;
+    }
+
+    .branding-title {
+      font-size: 40px;                
+      color: #222;
+      font-weight: 700;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f8f7f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2 {
+      margin-top: 20px;
+    }
+
+    #camera-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 3 / 4;
+      margin-top: 20px;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    video, #preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 16px;
+    }
+
+    #canvas {
+      display: none;
+    }
+
+    #overlay-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #controls {
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      background-color: blue;
+      color: rgb(255, 255, 255);
+      cursor: pointer;
+    }
+
+    #feedback {
+    margin-top: 10px;
+    font-weight: bold;
+    color: black; 
+    text-align: center;
+  }
+  .spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  border: 5px solid #ccc;
+  border-top: 5px solid #005eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+
+  </style>
+</head>
+<body>
+
+  
+  <div class="branding-header">
+      <img src="assets/branding_logo.png" alt="Brand Logo" class="branding-logo">
+      <h1>Frames Lab</h1>
+      <h2>Experience The Intelligence</h2>
+   </div>
+
+  <h3>Align face inside the oval and capture a photo</h3>
+  <div id="camera-wrapper">
+    <video id="camera" autoplay playsinline></video>
+    
+<!-- Container for preview + frame overlay -->
+<div id="previewContainer" style="position: relative; display: none; width: 100%; max-width: 400px;">
+  <div id="loadingOverlay" style="
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: none;
+  z-index: 20;
+  text-align: center;
+  padding-top: 30px;
+">
+  <div class="spinner"></div>
+  <p style="margin-top: 10px; color: #333; font-weight: bold;">Analyzing your face...</p>
+</div>
+
+  <img id="preview" style="display: block; width: 100%; height: auto;" />
+  <canvas id="frameCanvas" style="position: absolute; top: 0; left: 0; z-index: 10; pointer-events: none"></canvas>
+</div>
+
+
+    <!-- SVG Overlay with Wider Oval Cutout -->
+    <svg id="overlay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs>
+        <mask id="mask">
+          <rect width="100" height="100" fill="white"/>
+          <ellipse cx="50" cy="45" rx="33" ry="35" fill="black"/>
+        </mask>
+      </defs>
+      <rect width="100" height="100" fill="black" mask="url(#mask)" fill-opacity="0.85"/>
+    </svg>
+
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="controls">
+    <button id="captureBtn" onclick="capture()">Capture</button>
+    <button id="retakeBtn" onclick="retake()" style="display:none;">Retake</button>
+    <button id="submitBtn" onclick="submit()" style="display:none;">Submit</button>
+  </div>
+
+  <div id="feedback"></div>
+  <div id="result"></div>
+  
+
+
+  <script>
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('preview');
+    const feedback = document.getElementById('feedback');
+    const resultDiv = document.getElementById('result');
+
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    let resultData = null;
+    let currentImageBase64 = "";
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => video.srcObject = stream)
+      .catch(err => alert("Camera access denied."));
+
+    function capture() {
+      canvas.width = video.videoWidth;
+canvas.height = video.videoHeight;
+preview.dataset.originalWidth = video.videoWidth;
+preview.dataset.originalHeight = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+
+      const dataURL = canvas.toDataURL("image/jpeg");
+     preview.src = dataURL;
+
+// Store the original size for scaling later
+preview.dataset.originalWidth = canvas.width;
+preview.dataset.originalHeight = canvas.height;
+
+      currentImageBase64 = dataURL;
+
+      preview.style.display = "block";
+document.getElementById("previewContainer").style.display = "block";
+
+video.style.display = "none";
+
+      video.style.display = "none";
+      captureBtn.style.display = "none";
+      retakeBtn.style.display = "inline-block";
+      feedback.innerText = "Analyzing...";
+
+      fetch("http://localhost:8000/analyze_face", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_base64: dataURL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const { jawline_angle, pitch_angle, roll_angle, landmarks } = data;
+        resultData = data;
+        const { chin, forehead, jaw_l, jaw_r } = landmarks;
+
+        const ovalCenterX = canvas.width * 0.5;
+        const ovalCenterY = canvas.height * 0.45;
+        const ovalRadiusX = canvas.width * 0.33;
+        const ovalRadiusY = canvas.height * 0.35;
+
+        function isInsideOval(x, y) {
+          const normX = (x - ovalCenterX) / ovalRadiusX;
+          const normY = (y - ovalCenterY) / ovalRadiusY;
+          return (normX * normX + normY * normY) <= 1.0;
+        }
+
+        const insideOval =
+          isInsideOval(chin.x, chin.y) &&
+          isInsideOval(forehead.x, forehead.y) &&
+          isInsideOval(jaw_l.x, jaw_l.y) &&
+          isInsideOval(jaw_r.x, jaw_r.y);
+
+        const jawOk = Math.abs(jawline_angle) <= 12;
+        const pitchOk = pitch_angle >= 85 && pitch_angle <= 100;
+        const rollOk = Math.abs(roll_angle) <= 10;
+
+        const issues = [];
+
+        if (!insideOval) issues.push("Face is not fully inside the oval.");
+        if (!pitchOk) {
+          if (pitch_angle < 85) issues.push("Head tilted down. Raise your head slightly.");
+          else if (pitch_angle > 100) issues.push("Head tilted up. Lower your chin.");
+        }
+        if (!jawOk) {
+          if (jawline_angle < -12) issues.push("Head turned right. Look straight.");
+          else if (jawline_angle > 12) issues.push("Head turned left. Look straight.");
+        }
+        if (!rollOk) {
+          if (roll_angle < -10) issues.push("Head leaning right. Straighten your head.");
+          else if (roll_angle > 10) issues.push("Head leaning left. Straighten your head.");
+        }
+
+        if (issues.length === 0) {
+          feedback.innerText = "✅ Face aligned properly.";
+          feedback.style.marginBottom = "12px";
+
+          resultDiv.innerText = `Detected: ${data.face_shape} face, ${data.skin_tone} skin`;
+          submitBtn.style.display = "inline-block";
+        } else {
+          feedback.innerText = "❌ " + issues.join(" ");
+          resultDiv.innerText = "";
+          submitBtn.style.display = "none";
+        }
+      })
+      .catch(() => {
+        
+        feedback.innerText = "⚠️ Could not analyze face. Please try again.";
+
+        resultDiv.innerText = "";
+        submitBtn.style.display = "none";
+      });
+    }
+
+    function retake() {
+      video.style.display = "block";
+      preview.style.display = "none";
+      feedback.innerText = "";
+      resultDiv.innerText = "";
+      submitBtn.style.display = "none";
+      retakeBtn.style.display = "none";
+      captureBtn.style.display = "inline-block";
+    }
+
+    function submit() {
+      const loadingOverlay = document.getElementById("loadingOverlay");
+loadingOverlay.style.display = "block";  // show loader
+
+  submitBtn.disabled = true;
+  feedback.innerText = "⏳ Analyzing face for your frame recommendation...";
+  resultDiv.innerText = "";
+
+  // Hide overlay frame canvas
+  const canvasOverlay = document.getElementById("frameCanvas");
+  const ctxOverlay = canvasOverlay.getContext("2d");
+  ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+  canvasOverlay.style.display = "none";
+
+  fetch("http://localhost:8000/recommend_frame", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  })
+    .then(async res => {
+      submitBtn.disabled = false;
+
+      if (!res.ok) {
+        feedback.innerText = "⚠️ Something went wrong. Please try again.";
+        return;
+      }
+
+      const response = await res.json();
+
+      if (!response.success || !response.recommendation) {
+        feedback.innerText = "❌ Recommendation not available. Please recapture.";
+        return;
+      }
+
+      const result = response.recommendation;
+      const frameShape = result.recommended_frame;
+      const colors = result.recommended_color;
+      const summary = result["reasoning summary"];
+      const frameName = frameShape.toLowerCase();
+
+      // Show color list
+      const colorListHtml = colors.join(", ");
+
+      // Show one canvas per color
+      const frameImagesHtml = colors.map(color => `
+        <div style="text-align: center; margin-bottom: 15px;">
+          <canvas class="frame-tint-canvas" style="display: block; margin: auto; width: 300px;"></canvas>
+          <p style="margin-top: 5px;"><strong>${color}</strong></p>
+        </div>
+      `).join("");
+
+      setTimeout(() => {
+  loadingOverlay.style.display = "none";
+  feedback.innerText = "✅ Recommendation ready:";
+
+      resultDiv.innerHTML = `
+        <div style="margin-top: 20px; padding: 15px; background: rgb(173, 210, 244); border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 400px; text-align: left;">
+          <h3 style="margin-top: 0;">🎯 Personalized Recommendation</h3>
+          <p><strong>👤 Face Shape:</strong> ${resultData.face_shape}</p>
+          <p><strong>🕶 Frame Shape:</strong> ${frameShape}</p>
+          <p><strong>🎨 Frame Colors:</strong> ${colorListHtml}</p>
+          ${frameImagesHtml}
+          <p><strong>💡 Summary:</strong></p>
+          <ul style="font-size: 14px; color: #333;">
+            ${summary.map(point => `<li>${point.replace(/^[-•\d.]+/, "").trim()}</li>`).join("")}
+          </ul>
+        </div>
+      `;
+
+      applyColorToPreviewFrames(`/frames/${frameName}.png`, colors);
+}, 2500);
+    })
+    .catch(err => {
+      submitBtn.disabled = false;
+      feedback.innerText = "❌ Network error: Could not reach recommendation server.";
+      console.error("Network error:", err);
+    });
+}
+
+
+    function isFaceWellCentered(data) {
+    if (!data || !data.landmarks) return false;
+
+    // --- Ellipse geometry (same as your overlay SVG mask)
+    const ovalCenterX = canvas.width * 0.5;
+    const ovalCenterY = canvas.height * 0.45;
+    const ovalRadiusX = canvas.width * 0.33;
+    const ovalRadiusY = canvas.height * 0.35;
+
+    function isInsideOval(x, y) {
+      const normX = (x - ovalCenterX) / ovalRadiusX;
+      const normY = (y - ovalCenterY) / ovalRadiusY;
+      return (normX * normX + normY * normY) < 1.0;
+    }
+
+    // Check key landmark positions (chin, forehead, left jaw, right jaw)
+    const { chin, forehead, jaw_l, jaw_r } = data.landmarks;
+
+    const allInside =
+      isInsideOval(chin.x, chin.y) &&
+      isInsideOval(forehead.x, forehead.y) &&
+      isInsideOval(jaw_l.x, jaw_l.y) &&
+      isInsideOval(jaw_r.x, jaw_r.y);
+
+    // Check 3D angles for proper orientation
+    //Horizontal head rotation
+    const jawOk = Math.abs(data.jawline_angle) <= 5;
+    //Vertical head tilt
+    const pitchOk = data.pitch_angle >= 85 && data.pitch_angle <= 95;
+    //Side tilt 
+    const rollOk = Math.abs(data.roll_angle) <= 5;
+
+    // Final flexible condition: all key points inside & acceptable angles
+    return allInside && jawOk && pitchOk && rollOk;
+  }
+  
+function applyColorToPreviewFrames(frameSrc, colorList) {
+  const canvases = document.querySelectorAll(".frame-tint-canvas");
+  canvases.forEach((canvas, i) => {
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.src = `${frameSrc}?v=${Date.now()}`;
+
+
+    img.onload = () => {
+  const aspectRatio = img.width / img.height;
+  const displayWidth = 300;
+  const displayHeight = displayWidth / aspectRatio;
+
+  canvas.width = displayWidth;
+  canvas.height = displayHeight;
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  ctx.globalCompositeOperation = 'source-in';
+  const colorMap = {
+    "Black": "#000000",
+    "Gold": "#d4af37",
+    "Tortoise Shell": "#8B4513",
+    "Gunmetal Grey": "#555",
+    "Transparent": "rgba(255,255,255,0.2)",
+    "Rose Gold": "#b76e79",
+    "Matte Blue": "#3050a0",
+    "Brown": "#5c4033"
+  };
+  const tint = colorMap[colorList[i]] || "#000";
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = 'source-over';
+};
+
+  });
+}
+
+
+  </script>
+</body>
+</html>
