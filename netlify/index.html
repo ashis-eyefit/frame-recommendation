@@ -215,7 +215,7 @@ video.style.display = "none";
       retakeBtn.style.display = "inline-block";
       feedback.innerText = "Analyzing...";
 
-      fetch("http://localhost:8000/analyze_face", {
+      fetch("https://frame-recommendation.onrender.com/analyze_face", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -309,7 +309,7 @@ loadingOverlay.style.display = "block";  // show loader
   ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
   canvasOverlay.style.display = "none";
 
-  fetch("http://localhost:8000/recommend_frame", {
+  fetch("https://frame-recommendation.onrender.com/recommend_frame", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
