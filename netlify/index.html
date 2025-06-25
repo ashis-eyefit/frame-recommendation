@@ -309,12 +309,12 @@ loadingOverlay.style.display = "block";  // show loader
   ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
   canvasOverlay.style.display = "none";
 
-  fetch("https://frame-recommendation.onrender.com/recommend_frame", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({})
-  })
+  fetch("/recommend_frame", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(resultData)  // resultData holds all measurements + landmarks
+})
+
     .then(async res => {
       submitBtn.disabled = false;
 

@@ -8,7 +8,8 @@ import os
 from face_shape_detector import decode_image, analyze_face, system_prompt
 import openai
 from dotenv import load_dotenv
-
+from fastapi.responses import JSONResponse
+import json
 
 ## making a client with API KEY for calling gpt-4o
 load_dotenv()
@@ -28,9 +29,33 @@ app.add_middleware(
 # Add session middleware with secret key
 app.add_middleware(SessionMiddleware, secret_key="eyefit_frame_recommendation")
 
-# Request model
+# Request model and data validation
 class FaceRequest(BaseModel):
     image_base64: str
+class LandmarkPoint(BaseModel):
+    x: float
+    y: float
+
+class FaceLandmarks(BaseModel):
+    chin: LandmarkPoint
+    forehead: LandmarkPoint
+    jaw_l: LandmarkPoint
+    jaw_r: LandmarkPoint
+
+class FaceData(BaseModel):
+    face_shape: str
+    face_width: float
+    face_height: float
+    aspect_ratio: float
+    jaw_width: float
+    cheekbone_width: float
+    forehead_width: float
+    eye_distance: float
+    jawline_angle: float
+    pitch_angle: float
+    roll_angle: float
+    skin_tone: str
+    landmarks: FaceLandmarks
 
 @app.get("/confirm")
 def confirm():
@@ -61,18 +86,13 @@ def analyze(req: FaceRequest, request: Request):
 
 
 # post request end point to post data to LLM for the frame recommendation 
-from fastapi.responses import JSONResponse
-import json
-
 @app.post("/recommend_frame")
-async def recommend_frame(request: Request):
-    face_data = request.session.get("face_data")
+async def recommend_frame(data: FaceData):
+    face_data = data.model_dump()
+    print("✅ Received face data:", face_data)
 
-    if not face_data:
-        return JSONResponse(
-            content={"success": False, "error": "Face data not found. Please recapture."},
-            status_code=400
-        )
+    # Now safely use face_data for LLM prompt
+   
 
     system_prompt_text = system_prompt()
 
