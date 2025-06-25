@@ -20,7 +20,7 @@ app = FastAPI()
 # CORS setup (allow all origins or restrict to your domain)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://eyefit-frame-recommendation.netlify.app/"],  # frontend url updated
+    allow_origins=["https://eyefit-frame-recommendation.netlify.app"],  # frontend url updated
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
