@@ -3,13 +3,18 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import JSONResponse
 import os
 from face_shape_detector import decode_image, analyze_face, system_prompt
 import openai
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 import json
+from fastapi import Request
+import mediapipe as mp
+import cv2
+import numpy as np
+import base64
+
 
 ## making a client with API KEY for calling gpt-4o
 load_dotenv()
@@ -61,19 +66,44 @@ class FaceData(BaseModel):
 def confirm():
     return {"status": "API working"}
 
-from fastapi import Request
+
 
 ## post request end point for the user data (user face)
 @app.post("/analyze_face")
 def analyze(req: FaceRequest, request: Request):
     try:
+        # Decode the image
         img = decode_image(req.image_base64)
-        result = analyze_face(img)
+
+        # --- Your original face analysis result (shape, dimensions, etc.)
+        result = analyze_face(img)  # from face_shape_detector
 
         if "error" in result:
             return JSONResponse(content=result, status_code=400)
 
-        # Store result in session
+        # --- Add MediaPipe full mesh
+        mp_face_mesh = mp.solutions.face_mesh
+        face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
+
+        image_np = img.copy()
+        if image_np.shape[2] == 4:
+            image_np = cv2.cvtColor(image_np, cv2.COLOR_BGRA2RGB)
+        else:
+            image_np = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+
+        results = face_mesh.process(image_np)
+        h, w, _ = image_np.shape
+
+        if results.multi_face_landmarks:
+            mesh_landmarks = [
+                {"x": int(lm.x * w), "y": int(lm.y * h)}
+                for lm in results.multi_face_landmarks[0].landmark
+            ]
+            result["mesh_landmarks"] = mesh_landmarks  # ✅ Append full mesh
+        else:
+            result["mesh_landmarks"] = []
+
+        # Store in session
         request.session["face_data"] = result
 
         return result
@@ -83,6 +113,8 @@ def analyze(req: FaceRequest, request: Request):
             content={"error": f"Server error: {str(e)}"},
             status_code=500
         )
+
+
 
 
 # post request end point to post data to LLM for the frame recommendation 
