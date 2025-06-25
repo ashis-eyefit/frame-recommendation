@@ -60,35 +60,6 @@ def analyze(req: FaceRequest, request: Request):
         )
 
 
-"""# post request end point to post data to LLM for the frame recommendation 
-@app.post("/recommend_frame")
-async def recommend_frame(request: Request):
-    face_data = request.session.get("face_data")
-
-    if not face_data:
-        return {"success": False, "error": "Face data not found. Please recapture."}
-
-    system_prompt_text = system_prompt()
-
-    try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt_text},
-                {"role": "user", "content": str(face_data)}
-            ],
-            temperature=0.4
-        )
-
-        # ✅ Fixed way to access content
-        content = response.choices[0].message.content
-        print(content)  # Print to terminal
-        return {"success": True, "recommendation": content}
-
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-"""
 # post request end point to post data to LLM for the frame recommendation 
 from fastapi.responses import JSONResponse
 import json

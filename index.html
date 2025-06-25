@@ -5,10 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Face Capture</title>
   <style>
+    .branding-header {
+      display: flex;
+      flex-direction: column;         
+      align-items: center;            
+      justify-content: center;
+      margin: 30px auto;
+      text-align: center;
+    }
+
+    .branding-logo {
+      height: 120px;                   
+      width: auto;
+      margin-bottom: 10px;
+    }
+
+    .branding-title {
+      font-size: 40px;                
+      color: #222;
+      font-weight: 700;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+    }
     body {
       margin: 0;
       font-family: sans-serif;
-      background: #f0f0f0;
+      background: #f8f7f7;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -58,8 +80,8 @@
       font-size: 16px;
       border-radius: 8px;
       border: none;
-      background-color: #4CAF50;
-      color: white;
+      background-color: blue;
+      color: rgb(255, 255, 255);
       cursor: pointer;
     }
 
@@ -69,20 +91,56 @@
     color: black; 
     text-align: center;
   }
+  .spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  border: 5px solid #ccc;
+  border-top: 5px solid #005eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 
   </style>
 </head>
 <body>
 
-  <h2>📸 Align Face Inside the Oval and Capture a Photo</h2>
+  
+  <div class="branding-header">
+      <img src="assets/branding_logo.png" alt="Brand Logo" class="branding-logo">
+      <h1>Frames Lab</h1>
+      <h2>Experience The Intelligence</h2>
+   </div>
 
+  <h3>Align face inside the oval and capture a photo</h3>
   <div id="camera-wrapper">
     <video id="camera" autoplay playsinline></video>
     
 <!-- Container for preview + frame overlay -->
 <div id="previewContainer" style="position: relative; display: none; width: 100%; max-width: 400px;">
+  <div id="loadingOverlay" style="
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: none;
+  z-index: 20;
+  text-align: center;
+  padding-top: 30px;
+">
+  <div class="spinner"></div>
+  <p style="margin-top: 10px; color: #333; font-weight: bold;">Analyzing your face...</p>
+</div>
+
   <img id="preview" style="display: block; width: 100%; height: auto;" />
-  <canvas id="frameCanvas" style="position: absolute; top: 0; left: 0; z-index: 10; pointer-events: none;"></canvas>
+  <canvas id="frameCanvas" style="position: absolute; top: 0; left: 0; z-index: 10; pointer-events: none"></canvas>
 </div>
 
 
@@ -101,9 +159,9 @@
   </div>
 
   <div id="controls">
-    <button id="captureBtn" onclick="capture()">📸 Capture</button>
-    <button id="retakeBtn" onclick="retake()" style="display:none;">🔁 Retake</button>
-    <button id="submitBtn" onclick="submit()" style="display:none;">✅ Submit</button>
+    <button id="captureBtn" onclick="capture()">Capture</button>
+    <button id="retakeBtn" onclick="retake()" style="display:none;">Retake</button>
+    <button id="submitBtn" onclick="submit()" style="display:none;">Submit</button>
   </div>
 
   <div id="feedback"></div>
@@ -208,6 +266,8 @@ video.style.display = "none";
 
         if (issues.length === 0) {
           feedback.innerText = "✅ Face aligned properly.";
+          feedback.style.marginBottom = "12px";
+
           resultDiv.innerText = `Detected: ${data.face_shape} face, ${data.skin_tone} skin`;
           submitBtn.style.display = "inline-block";
         } else {
@@ -236,6 +296,9 @@ video.style.display = "none";
     }
 
     function submit() {
+      const loadingOverlay = document.getElementById("loadingOverlay");
+loadingOverlay.style.display = "block";  // show loader
+
   submitBtn.disabled = true;
   feedback.innerText = "⏳ Analyzing face for your frame recommendation...";
   resultDiv.innerText = "";
@@ -279,15 +342,17 @@ video.style.display = "none";
       // Show one canvas per color
       const frameImagesHtml = colors.map(color => `
         <div style="text-align: center; margin-bottom: 15px;">
-          <canvas class="frame-tint-canvas" width="300" height="150" style="display: block; margin: auto;"></canvas>
+          <canvas class="frame-tint-canvas" style="display: block; margin: auto; width: 300px;"></canvas>
           <p style="margin-top: 5px;"><strong>${color}</strong></p>
         </div>
       `).join("");
 
-      feedback.innerText = "✅ Recommendation ready:";
+      setTimeout(() => {
+  loadingOverlay.style.display = "none";
+  feedback.innerText = "✅ Recommendation ready:";
 
       resultDiv.innerHTML = `
-        <div style="margin-top: 20px; padding: 15px; background: #fff; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 400px; text-align: left;">
+        <div style="margin-top: 20px; padding: 15px; background: rgb(173, 210, 244); border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 400px; text-align: left;">
           <h3 style="margin-top: 0;">🎯 Personalized Recommendation</h3>
           <p><strong>👤 Face Shape:</strong> ${resultData.face_shape}</p>
           <p><strong>🕶 Frame Shape:</strong> ${frameShape}</p>
@@ -301,6 +366,7 @@ video.style.display = "none";
       `;
 
       applyColorToPreviewFrames(`/frames/${frameName}.png`, colors);
+}, 2500);
     })
     .catch(err => {
       submitBtn.disabled = false;
@@ -351,28 +417,39 @@ function applyColorToPreviewFrames(frameSrc, colorList) {
   canvases.forEach((canvas, i) => {
     const ctx = canvas.getContext("2d");
     const img = new Image();
-    img.src = frameSrc;
+    img.src = `${frameSrc}?v=${Date.now()}`;
+
 
     img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const aspectRatio = img.width / img.height;
+  const displayWidth = 300;
+  const displayHeight = displayWidth / aspectRatio;
 
-      ctx.globalCompositeOperation = 'source-in';
-      const colorMap = {
-        "Black": "#000000",
-        "Gold": "#d4af37",
-        "Tortoise Shell": "#8B4513",
-        "Gunmetal Grey": "#555",
-        "Transparent": "rgba(255,255,255,0.2)",
-        "Rose Gold": "#b76e79",
-        "Matte Blue": "#3050a0",
-        "Brown": "#5c4033"
-      };
-      const tint = colorMap[colorList[i]] || "#000";
-      ctx.fillStyle = tint;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.globalCompositeOperation = 'source-over';
-    };
+  canvas.width = displayWidth;
+  canvas.height = displayHeight;
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  ctx.globalCompositeOperation = 'source-in';
+  const colorMap = {
+    "Black": "#000000",
+    "Gold": "#d4af37",
+    "Tortoise Shell": "#8B4513",
+    "Gunmetal Grey": "#555",
+    "Transparent": "rgba(255,255,255,0.2)",
+    "Rose Gold": "#b76e79",
+    "Matte Blue": "#3050a0",
+    "Brown": "#5c4033"
+  };
+  const tint = colorMap[colorList[i]] || "#000";
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = 'source-over';
+};
+
   });
 }
 
