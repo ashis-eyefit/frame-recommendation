@@ -248,8 +248,9 @@ preview.dataset.originalHeight = video.videoHeight;
      
       setTimeout(() => {
       feedback.style.marginBottom = "12px";
-      resultDiv.innerText = `Detected: ${data.face_shape} face, ${data.skin_tone} skin`;
-      resultDiv.innerText = `Kindly, click on submit to get recommendation`
+      resultDiv.innerHTML = `<p>Detected: ${data.face_shape} face, ${data.skin_tone} skin</p>
+                              <li>
+                              <p>Kindly, click on submit to get recommendation</p>`;
       },4000);
       submitBtn.style.display = "inline-block";
     
