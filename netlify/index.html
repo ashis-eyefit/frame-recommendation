@@ -207,7 +207,7 @@ preview.dataset.originalHeight = video.videoHeight;
   .then(res => res.json())
   .then(data => {
     if (!data || !data.landmarks) {
-      feedback.innerText = "⚠️ Could not analyze face. Please try again.";
+      feedback.innerText = "⚠️ Could not analyze face. Please refresh the page and try again.";
       return;
     }
 
@@ -252,10 +252,6 @@ preview.dataset.originalHeight = video.videoHeight;
                              <p>Kindly, click on submit to get recommendation</p>`;
       },4000);
       submitBtn.style.display = "inline-block";
-    
-    } 
-    else if (!data || data.error) {
-      showFriendlyError("Something went wrong. Please refresh.");
     }
 
     else {
