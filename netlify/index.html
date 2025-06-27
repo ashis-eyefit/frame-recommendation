@@ -13,17 +13,17 @@
     }
     .branding-header {
       display: flex;
-      flex-direction: column;         
-      align-items: center;            
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      margin: 30px auto;
+      margin: 2px auto 2px auto; 
       text-align: center;
     }
 
     .branding-logo {
-      height: 120px;                   
+      height: 120px;      
       width: auto;
-      margin-bottom: 10px;
+      margin-bottom: 1px;  
     }
 
     .branding-title {
@@ -54,6 +54,16 @@
       margin-top: 20px;
       border-radius: 16px;
       overflow: hidden;
+    }
+    .branding-header h2 {
+      margin: 10px 0;       
+      font-weight: 700;
+    }
+
+    .branding-header h3 {
+      margin: 10px 0 14px 0; 
+      font-weight: 500;
+      font-size: 18px;
     }
 
     video, #preview {
@@ -113,6 +123,18 @@
       object-fit: cover;
       border-radius: 16px;
     }
+    @keyframes pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+#countdown {
+  transition: transform 0.3s ease-in-out;
+}
+
+
+
 
     </style>
   </head>
@@ -122,7 +144,7 @@
     <img src="assets/branding_logo.png" alt="Brand Logo" class="branding-logo">
     <h2>Frames Studio</h1>
     <h2>Experience The Intelligence</h2>
-    <h3 style="color: #383737;">Align face inside the oval and capture a photo</h3>
+    <h3 style="color: #383737; ">Align face inside the oval and capture a photo</h3>
   
     <div id="camera-wrapper">
       <video id="camera" autoplay playsinline></video>
@@ -136,7 +158,7 @@
         <canvas id="meshCanvas" style="position: absolute; top: 0; left: 0; z-index: 15; pointer-events: none;"></canvas>
 
       </div>
-
+     
 
       <!-- SVG Overlay with Wider Oval Cutout -->
       <svg id="overlay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -154,13 +176,29 @@
 
     <div id="controls">
       <button id="captureBtn" onclick="capture()">Capture</button>
-      <button id="retakeBtn" onclick="retake()" style="display:none;">Retake</button>
-      <button id="submitBtn" onclick="submit()" style="display:none;">Submit</button>
+      <button id="retakeBtn" onclick="retake()" style="display: none;">Retake</button>
     </div>
   </div>
   <div id="feedback"></div>
   <div id="result" style="text-align: center;"></div>
+  <div id="countdown" style="
+  font-size: 60px;
+  font-weight: bold;
+  color: #ff3366;
+  text-align: center;
+  margin-top: 10px;
+  display: none;
+"></div>
+
+<div id="countdown-msg" style="
+  font-size: 18px;
+  text-align: center;
+  color: #333;
+  margin-bottom: 10px;
+"></div>
 </div>
+
+
 
 <script>
 let landmarks = null;
@@ -195,220 +233,301 @@ function capture() {
   video.style.display = "none";
   captureBtn.style.display = "none";
   retakeBtn.style.display = "inline-block";
-  
-preview.dataset.originalWidth = video.videoWidth;
-preview.dataset.originalHeight = video.videoHeight;
+
+  preview.dataset.originalWidth = video.videoWidth;
+  preview.dataset.originalHeight = video.videoHeight;
 
   fetch("https://frame-recommendation.onrender.com/analyze_face", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image_base64: dataURL })
   })
-  .then(res => res.json())
-  .then(data => {
-    if (!data || !data.landmarks) {
-      feedback.innerText = "⚠️ Could not analyze face. Please refresh the page and try again.";
-      return;
-    }
+    .then(res => res.json())
+    .then(data => {
+      if (!data || !data.landmarks) {
+        feedback.innerText = "⚠️ Could not analyze face. Please refresh the page and try again.";
+        return;
+      }
 
-    resultData = data;
-    landmarks = data.landmarks;
+      resultData = data;
+      landmarks = data.landmarks;
 
+      const { chin, forehead, jaw_l, jaw_r } = landmarks;
+      const { jawline_angle, pitch_angle, roll_angle } = data;
 
+      const ovalCenterX = canvas.width * 0.5;
+      const ovalCenterY = canvas.height * 0.45;
+      const ovalRadiusX = canvas.width * 0.33;
+      const ovalRadiusY = canvas.height * 0.35;
 
-    const { chin, forehead, jaw_l, jaw_r } = landmarks;
-    const { jawline_angle, pitch_angle, roll_angle } = data;
+      const isInsideOval = (x, y) => {
+        const normX = (x - ovalCenterX) / ovalRadiusX;
+        const normY = (y - ovalCenterY) / ovalRadiusY;
+        return (normX * normX + normY * normY) <= 1.0;
+      };
 
-    const ovalCenterX = canvas.width * 0.5;
-    const ovalCenterY = canvas.height * 0.45;
-    const ovalRadiusX = canvas.width * 0.33;
-    const ovalRadiusY = canvas.height * 0.35;
+      const insideOval = [chin, forehead, jaw_l, jaw_r].every(p => isInsideOval(p.x, p.y));
+      const jawOk = Math.abs(jawline_angle) <= 12;
+      const pitchOk = pitch_angle >= 85 && pitch_angle <= 100;
+      const rollOk = Math.abs(roll_angle) <= 10;
 
-    const isInsideOval = (x, y) => {
-      const normX = (x - ovalCenterX) / ovalRadiusX;
-      const normY = (y - ovalCenterY) / ovalRadiusY;
-      return (normX * normX + normY * normY) <= 1.0;
-    };
+      const issues = [];
+      if (!insideOval) issues.push("Face is not fully inside the oval.");
+      if (!pitchOk) issues.push(pitch_angle < 85 ? "Head tilted down. Raise your head slightly." : "Head tilted up. Lower your chin.");
+      if (!jawOk) issues.push(jawline_angle < -12 ? "Head turned right. Look straight." : "Head turned left. Look straight.");
+      if (!rollOk) issues.push(roll_angle < -10 ? "Head leaning right. Straighten your head." : "Head leaning left. Straighten your head.");
 
-    const insideOval = [chin, forehead, jaw_l, jaw_r].every(p => isInsideOval(p.x, p.y));
-    const jawOk = Math.abs(jawline_angle) <= 12;
-    const pitchOk = pitch_angle >= 85 && pitch_angle <= 100;
-    const rollOk = Math.abs(roll_angle) <= 10;
+      if (issues.length > 0) {
+        feedback.innerHTML = "❌ " + issues.join("<br>") + "<br><br>🔁 Please align and retake.";
+        resultDiv.innerHTML = "";
+        retakeBtn.style.display = "inline-block";
+        return;
+      }
 
-    const issues = [];
-    if (!insideOval) issues.push("Face is not fully inside the oval.");
-    if (!pitchOk) issues.push(pitch_angle < 85 ? "Head tilted down. Raise your head slightly." : "Head tilted up. Lower your chin.");
-    if (!jawOk) issues.push(jawline_angle < -12 ? "Head turned right. Look straight." : "Head turned left. Look straight.");
-    if (!rollOk) issues.push(roll_angle < -10 ? "Head leaning right. Straighten your head." : "Head leaning left. Straighten your head.");
-
-    if (issues.length === 0) {
+      // ✅ Face properly aligned
       feedback.innerText = "✅ Face aligned properly";
-      drawFaceMesh(landmarks)
+      retakeBtn.style.display = "none";
+      drawFaceMesh(data.mesh_landmarks || []);
+      drawFaceMesh(landmarks);
 
-     
       setTimeout(() => {
-      feedback.style.marginBottom = "12px";
-      resultDiv.innerHTML = `<p>Detected: ${data.face_shape} face, ${data.skin_tone} skin</p>
-                             <p>Kindly, click on submit to get recommendation</p>`;
-      },4000);
-      submitBtn.style.display = "inline-block";
-    }
+        feedback.innerHTML = `✅ Face aligned properly<br><br>Detected: <strong>${data.face_shape}</strong> face, <strong>${data.skin_tone}</strong> skin`;
+      }, 2500);
 
-    else {
-      feedback.innerText = "❌ " + issues.join(" ");
+      // === Auto-call recommendation
+      setTimeout(() => {
+        feedback.innerText = "⏳ Analyzing face for your frame recommendation...";
+        fetch("https://frame-recommendation.onrender.com/recommend_frame", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        })
+          .then(res => res.json())
+          .then(response => {
+            if (!response.success || !response.recommendation) {
+              feedback.innerText = "❌ Recommendation not available. Please recapture.";
+              retakeBtn.style.display = "inline-block";
+              return;
+            }
+
+            const { recommended_frame, recommended_color, ["reasoning summary"]: summary } = response.recommendation;
+            const frameName = recommended_frame.toLowerCase();
+            const colorListHtml = recommended_color.join(", ");
+            const frameImagesHtml = recommended_color.map(color => `
+              <div style="text-align: center; font-size: 25px; margin-bottom: 15px;">
+                <canvas class="frame-tint-canvas" style="display: block; margin: auto; width: 300px;"></canvas>
+                <p style="margin-top: 5px;"><strong>${color}</strong></p>
+              </div>
+            `).join("");
+
+            setTimeout(() => {
+              feedback.innerText = "🎯 Your personalized recommendation is ready!";
+              resultDiv.innerHTML = `
+                <div style="margin-top: 20px; padding: 15px; background: #8ec9f1; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 400px; text-align: left;">
+                  <h3 style="margin-top: 0;">Personalized Recommendation</h3>
+                  <p><strong>Face Shape:</strong> ${data.face_shape}</p>
+                  <p><strong>Frame Shape:</strong> ${recommended_frame}</p>
+                  <p><strong>Frame Colors:</strong> ${colorListHtml}</p>
+                  ${frameImagesHtml}
+                  <p><strong>Recommendation Summary:</strong></p>
+                  <ul style="font-size: 14px; color: #333;">
+                    ${summary.map(point => `<li>${point.replace(/^[-•\d.]+/, "").trim()}</li>`).join("")}
+                  </ul>
+                </div>`;
+              applyColorToPreviewFrames(`/frames/${frameName}.png`, recommended_color);
+            }, 1500);
+          })
+          .catch(() => {
+            feedback.innerText = "❌ Network error. Please retry.";
+            retakeBtn.style.display = "inline-block";
+          });
+      }, 4500);
+    })
+    .catch(() => {
+      feedback.innerText = "⚠️ Could not analyze face. Please try again.";
       resultDiv.innerText = "";
-      submitBtn.style.display = "none";
-    }
-  })
-  .catch(() => {
-    feedback.innerText = "⚠️ Could not analyze face. Please try again.";
-    resultDiv.innerText = "";
-    submitBtn.style.display = "none";
-  });
+    });
 }
+
 
 function retake() {
-  video.style.display = "block";
+  resultDiv.innerHTML = "";
   preview.style.display = "none";
-  document.getElementById("meshCanvas").style.display = "none";
-  feedback.innerText = "";
-  resultDiv.innerText = "";
-  submitBtn.style.display = "none";
-  retakeBtn.style.display = "none";
-  captureBtn.style.display = "inline-block";
-}
+  previewContainer.style.display = "none";
+  video.style.display = "block";
+  captureBtn.style.display = "none";
 
-function submit() {
-  submitBtn.disabled = true;
-  feedback.innerText = "⏳ Analyzing face for your frame recommendation...";
-  resultDiv.innerText = "";
+  const countdownDiv = document.getElementById("countdown");
+  const countdownMsg = document.getElementById("countdown-msg");
 
-  fetch("https://frame-recommendation.onrender.com/recommend_frame", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(resultData)
-  })
-  .then(res => res.json())
-  .then(response => {
-    submitBtn.disabled = false;
-    if (!response.success || !response.recommendation) {
-      feedback.innerText = "❌ Recommendation not available. Please recapture.";
-      return;
+  let timeLeft = 4;
+
+  countdownDiv.innerText = timeLeft;
+  countdownDiv.style.display = "block";
+  countdownMsg.innerText = "♻️ Preparing to retake...";
+
+  // Trigger animation for first number
+  countdownDiv.style.animation = "none";
+  void countdownDiv.offsetWidth; // Reflow to reset animation
+  countdownDiv.style.animation = "pop 0.4s ease-in-out";
+
+  const interval = setInterval(() => {
+    timeLeft--;
+
+    if (timeLeft > 0) {
+      countdownDiv.innerText = timeLeft;
+
+      // Animate number change
+      countdownDiv.style.animation = "none";
+      void countdownDiv.offsetWidth;
+      countdownDiv.style.animation = "pop 0.4s ease-in-out";
+
+    } else {
+      clearInterval(interval);
+      countdownDiv.style.display = "none";
+      countdownMsg.innerText = ""; // 
+      retakeBtn.style.display = "none";
+      capture();
     }
-
-    const { recommended_frame, recommended_color, ["reasoning summary"]: summary } = response.recommendation;
-    const frameName = recommended_frame.toLowerCase();
-    const colorListHtml = recommended_color.join(", ");
-    const frameImagesHtml = recommended_color.map(color => `
-      <div style="text-align: center; margin-bottom: 15px;">
-        <canvas class="frame-tint-canvas" style="display: block; margin: auto; width: 300px;"></canvas>
-        <p style="margin-top: 5px;"><strong>${color}</strong></p>
-      </div>
-    `).join("");
-
-    setTimeout(() => {
-      feedback.innerText = "Your personalized recommendation is ready!";
-      resultDiv.innerHTML = `
-        <div style="margin-top: 20px; padding: 15px; background: #8ec9f1; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 400px; text-align: left;">
-          <h3 style="margin-top: 0;">Personalized Recommendation</h3>
-          <p><strong>Face Shape:</strong> ${resultData.face_shape}</p>
-          <p><strong>Frame Shape:</strong> ${recommended_frame}</p>
-          <p><strong>Frame Colors:</strong> ${colorListHtml}</p>
-          ${frameImagesHtml}
-          <p><strong>Recommendation Summary:</strong></p>
-          <ul style="font-size: 14px; color: #333;">
-            ${summary.map(point => `<li>${point.replace(/^[-•\d.]+/, "").trim()}</li>`).join("")}
-          </ul>
-        </div>`;
-      applyColorToPreviewFrames(`/frames/${frameName}.png`, recommended_color);
-    }, 2500);
-  })
-  .catch(() => {
-    submitBtn.disabled = false;
-    feedback.innerText = "❌ Network error: Could not reach recommendation server.";
-  });
+  }, 1000);
 }
 
-function drawFaceMesh(landmarks) {
+
+
+
+function drawFaceMesh(meshLandmarks) {
   const canvas = document.getElementById("meshCanvas");
   const ctx = canvas.getContext("2d");
 
-  // Ensure canvas size matches the preview (still image)
+  if (!Array.isArray(meshLandmarks) || meshLandmarks.length < 10) {
+    console.warn("No detailed mesh landmarks available. Skipping mesh render.");
+    return;
+  }
+
   canvas.width = preview.offsetWidth;
   canvas.height = preview.offsetHeight;
   canvas.style.display = "block";
-
-  if (!landmarks || Object.values(landmarks).length < 4) return;
 
   const originalW = parseInt(preview.dataset.originalWidth || canvas.width);
   const originalH = parseInt(preview.dataset.originalHeight || canvas.height);
   const scaleX = canvas.width / originalW;
   const scaleY = canvas.height / originalH;
 
-  const points = Object.values(landmarks).map(p => ({
+  const points = meshLandmarks.map(p => ({
     x: p.x * scaleX,
     y: p.y * scaleY
   }));
 
-  const sparkles = points.map(p => ({
-    x: p.x,
-    y: p.y,
-    phase: Math.random() * 2 * Math.PI
+  // Balanced facial mesh grid indexes
+  const gridIndexes = [
+    234, 93, 132, 58, 172,     // Left cheek
+    454, 323, 361, 288, 397,   // Right cheek
+    33, 133, 160, 159, 145, 153, // Eyes
+    362, 263, 387, 386, 374, 373,
+    70, 66, 105, 107, 276, 300, 336, // Brows
+    2, 98, 168, 5, 94, 195,         // Nose
+    61, 291, 78, 308, 13, 14, 17, 87, // Mouth
+    152, 199,                      // Chin
+    10, 338                        // Forehead
+  ];
+
+  const gridPoints = gridIndexes.map(i => points[i % points.length]);
+
+  const stars = Array.from({ length: 18 }, (_, i) => ({
+    currentIndex: (i * 3) % gridPoints.length,
+    progress: 0,
+    color: "#00f2ff",
+    speed: 0.01 + Math.random() * 0.015
   }));
 
   let t = 0;
   const scanLine = { y: 0 };
 
   const animation = setInterval(() => {
-    ctx.clearRect(0, 0, canvas.width, 2*canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Scanline effect
+    // === Brighter scanline
     scanLine.y += 2;
     if (scanLine.y > canvas.height) scanLine.y = 0;
-    const gradient = ctx.createLinearGradient(0, scanLine.y, 0, scanLine.y + 30);
-    gradient.addColorStop(0, "rgba(0, 255, 255, 0)");
-    gradient.addColorStop(0.5, "rgba(0, 255, 255, 0.2)");
-    gradient.addColorStop(1, "rgba(0, 255, 255, 0)");
+    const gradient = ctx.createLinearGradient(0, scanLine.y, 0, scanLine.y + 50);
+    gradient.addColorStop(0, "rgba(0,255,255,0)");
+    gradient.addColorStop(0.5, "rgba(0,255,255,0.45)");  // Brightened
+    gradient.addColorStop(1, "rgba(0,255,255,0)");
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, scanLine.y, canvas.width, 30);
+    ctx.fillRect(0, scanLine.y, canvas.width, 50);
 
-    // Draw mesh lines (connecting close points)
-    ctx.strokeStyle = "rgba(0, 200, 255, 0.3)";
-    ctx.lineWidth = 1;
+    // === Static light lines connecting nearby grid points
     ctx.beginPath();
-    for (let i = 0; i < points.length - 1; i++) {
-      for (let j = i + 1; j < points.length; j++) {
-        const dx = points[i].x - points[j].x;
-        const dy = points[i].y - points[j].y;
+    for (let i = 0; i < gridPoints.length; i++) {
+      for (let j = i + 1; j < gridPoints.length; j++) {
+        const dx = gridPoints[i].x - gridPoints[j].x;
+        const dy = gridPoints[i].y - gridPoints[j].y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 50) {
-          ctx.moveTo(points[i].x, points[i].y);
-          ctx.lineTo(points[j].x, points[j].y);
+        if (dist < 60) {
+          ctx.moveTo(gridPoints[i].x, gridPoints[i].y);
+          ctx.lineTo(gridPoints[j].x, gridPoints[j].y);
         }
       }
     }
+    ctx.strokeStyle = "rgba(255, 190, 220, 0.07)";  // Very light pink
+    ctx.lineWidth = 0.7;
     ctx.stroke();
 
-    // Draw sparkling stars
-    sparkles.forEach((s, i) => {
-      const r = 1.5 + Math.sin(t + s.phase) * 1.2;
+    // === Blinking soft pink grid points
+    gridPoints.forEach((pt, i) => {
+      const pulse = 1.8 + Math.sin(t * 2 + i * 1.7) * 0.4;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, r, 0, 2 * Math.PI);
-      ctx.fillStyle = i % 2 === 0 ? "#00f2ff" : "#9b00ff";
-      ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = 6;
+      ctx.arc(pt.x, pt.y, pulse, 0, 2 * Math.PI);
+      ctx.fillStyle = "rgba(255, 135, 155, 0.85)";
+      ctx.shadowColor = "rgba(255, 105, 145, 0.4)";
+      ctx.shadowBlur = 5;
       ctx.fill();
     });
 
-    t += 0.2;
+    // === Stars and path lines
+    stars.forEach(star => {
+      const curr = gridPoints[star.currentIndex];
+      const next = gridPoints[(star.currentIndex + 1) % gridPoints.length];
+
+      const x = curr.x + (next.x - curr.x) * star.progress;
+      const y = curr.y + (next.y - curr.y) * star.progress;
+
+      // trail
+      ctx.beginPath();
+      ctx.moveTo(curr.x, curr.y);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = "rgba(0, 255, 255, 0.5)";
+      ctx.lineWidth = 1;
+      ctx.shadowColor = "#00eaff";
+      ctx.shadowBlur = 6;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // star
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, 2 * Math.PI);
+      ctx.fillStyle = star.color;
+      ctx.shadowColor = star.color;
+      ctx.shadowBlur = 10;
+      ctx.fill();
+
+      star.progress += star.speed;
+      if (star.progress >= 1) {
+        star.progress = 0;
+        star.currentIndex = (star.currentIndex + 1) % gridPoints.length;
+      }
+    });
+
+    t += 0.1;
   }, 40);
 
   setTimeout(() => {
     clearInterval(animation);
-    ctx.clearRect(0, 0, canvas.width, 2*canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     canvas.style.display = "none";
-  }, 4000);
+  }, 4500);
 }
+
 function applyColorToPreviewFrames(frameSrc, colorList) {
   const canvases = document.querySelectorAll(".frame-tint-canvas");
   canvases.forEach((canvas, i) => {
