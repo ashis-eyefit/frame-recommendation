@@ -254,7 +254,7 @@ preview.dataset.originalHeight = video.videoHeight;
       submitBtn.style.display = "inline-block";
     
     } 
-    if (!data || data.error) {
+    else if (!data || data.error) {
       showFriendlyError("Something went wrong. Please refresh.");
     }
 
