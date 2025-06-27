@@ -254,6 +254,10 @@ preview.dataset.originalHeight = video.videoHeight;
       submitBtn.style.display = "inline-block";
     
     } 
+    if (!data || data.error) {
+      showFriendlyError("Something went wrong. Please refresh.");
+    }
+
     else {
       feedback.innerText = "❌ " + issues.join(" ");
       resultDiv.innerText = "";
@@ -360,7 +364,7 @@ function drawFaceMesh(landmarks) {
   const scanLine = { y: 0 };
 
   const animation = setInterval(() => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, 2*canvas.height);
 
     // Scanline effect
     scanLine.y += 2;
@@ -405,7 +409,7 @@ function drawFaceMesh(landmarks) {
 
   setTimeout(() => {
     clearInterval(animation);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, 2*canvas.height);
     canvas.style.display = "none";
   }, 4000);
 }
