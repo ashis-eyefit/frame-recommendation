@@ -449,12 +449,12 @@ function drawFaceMesh(meshLandmarks) {
     // === Brighter scanline
     scanLine.y += 2;
     if (scanLine.y > canvas.height) scanLine.y = 0;
-    const gradient = ctx.createLinearGradient(0, scanLine.y, 15, scanLine.y + 250);
+    const gradient = ctx.createLinearGradient(0, scanLine.y, 15, scanLine.y + 350);
     gradient.addColorStop(0, "rgba(0,255,255,0)");
     gradient.addColorStop(0.5, "rgba(0,255,255,0.45)");  // Brightened
     gradient.addColorStop(1, "rgba(0,255,255,0)");
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, scanLine.y, canvas.width, 100);
+    ctx.fillRect(0, scanLine.y, canvas.width, 50);
 
     // === Static light lines connecting nearby grid points
     ctx.beginPath();
