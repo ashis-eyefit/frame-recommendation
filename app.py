@@ -135,7 +135,7 @@ async def recommend_frame(data: FaceData):
                 {"role": "system", "content": system_prompt_text},
                 {"role": "user", "content": str(face_data)}
             ],
-            temperature=0.4
+            temperature=0.3
         )
 
         content = response.choices[0].message.content.strip()
