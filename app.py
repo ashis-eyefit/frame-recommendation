@@ -1,19 +1,17 @@
 # app.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
-from face_shape_detector import decode_image, analyze_face, system_prompt
+from face_shape_detector import decode_image, analyze_face, system_prompt, insert_face_data, insert_frame_recommendation
 import openai
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 import json
-from fastapi import Request
 import mediapipe as mp
 import cv2
-import numpy as np
-import base64
+
 
 
 ## making a client with API KEY for calling gpt-4o
@@ -61,6 +59,7 @@ class FaceData(BaseModel):
     roll_angle: float
     skin_tone: str
     landmarks: FaceLandmarks
+    face_id: int
 
 @app.get("/confirm")
 def confirm():
@@ -103,9 +102,21 @@ def analyze(req: FaceRequest, request: Request):
         else:
             result["mesh_landmarks"] = []
 
-        # Store in session
-        request.session["face_data"] = result
+        #  Insert core face data into DB and get face_id
+        try:
+            face_id = insert_face_data(result)  # stores everything needed
+            result["face_id"]  = face_id
+            
+           
+        except Exception as db_error:
+            import traceback
+            traceback.print_exc()
+            return JSONResponse(
+                content={"error": "Database insert failed"},
+                status_code=500
+            )
 
+        # Return full result with face_id (mesh is safe in response)
         return result
 
     except Exception as e:
@@ -121,11 +132,11 @@ def analyze(req: FaceRequest, request: Request):
 @app.post("/recommend_frame")
 async def recommend_frame(data: FaceData):
     face_data = data.model_dump()
-    print("✅ Received face data:", face_data)
+
+    # pop the face_id before entering the data to the LLM
+    face_id = face_data.pop("face_id")
 
     # Now safely use face_data for LLM prompt
-   
-
     system_prompt_text = system_prompt()
 
     try:
@@ -139,20 +150,28 @@ async def recommend_frame(data: FaceData):
         )
 
         content = response.choices[0].message.content.strip()
-        print("🧠 Raw LLM content:\n", content)
+    
 
-        # 🧼 Remove any markdown if present
+        # Remove any markdown if present
         if content.startswith("```"):
             content = content.replace("```json", "").replace("```", "").strip()
 
-        # ✅ Try parsing if it's a string
+        # Try parsing if it's a string
         if isinstance(content, str):
             parsed = json.loads(content)
         else:
             parsed = content  # already dict (rare in openai lib but check anyway)
 
+        #  Get face_id from session
+        if face_id is None:
+            return JSONResponse(
+                content={"success": False, "error": "Session expired or invalid. Please recapture face."},
+                status_code=400
+            )
+        
+        #  Insert recommendation data with face_id as a FK into DB
+        insert_frame_recommendation(face_id, parsed)
         return JSONResponse(content={"success": True, "recommendation": parsed}, status_code=200)
 
     except Exception as e:
-        print("❌ Error in recommend_frame:", e)
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)

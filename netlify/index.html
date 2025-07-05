@@ -211,7 +211,7 @@ const resultDiv = document.getElementById('result');
 
 const captureBtn = document.getElementById('captureBtn');
 const retakeBtn = document.getElementById('retakeBtn');
-const submitBtn = document.getElementById('submitBtn');
+
 
 let resultData = null;
 
@@ -400,7 +400,6 @@ function drawFaceMesh(meshLandmarks) {
   const ctx = canvas.getContext("2d");
 
   if (!Array.isArray(meshLandmarks) || meshLandmarks.length < 10) {
-    console.warn("No detailed mesh landmarks available. Skipping mesh render.");
     return;
   }
 

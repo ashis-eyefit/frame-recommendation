@@ -4,6 +4,7 @@ import mediapipe as mp
 from io import BytesIO
 from PIL import Image
 import base64
+from sqldb import get_db
 
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True)
@@ -158,3 +159,73 @@ def system_prompt():
 
         """
 
+### input data base for face analysis
+
+def insert_face_data(face_data):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO face_analysis (
+            face_shape, face_width, face_height, aspect_ratio, jaw_width,
+            cheekbone_width, forehead_width, eye_distance, jawline_angle,
+            pitch_angle, roll_angle, skin_tone,
+            chin_x, chin_y, forehead_x, forehead_y,
+            jaw_l_x, jaw_l_y, jaw_r_x, jaw_r_y
+        ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    landmarks = face_data["landmarks"]
+    values = (
+        face_data["face_shape"],
+        face_data["face_width"],
+        face_data["face_height"],
+        face_data["aspect_ratio"],
+        face_data["jaw_width"],
+        face_data["cheekbone_width"],
+        face_data["forehead_width"],
+        face_data["eye_distance"],
+        face_data["jawline_angle"],
+        face_data["pitch_angle"],
+        face_data["roll_angle"],
+        face_data["skin_tone"],
+        landmarks["chin"]["x"], landmarks["chin"]["y"],
+        landmarks["forehead"]["x"], landmarks["forehead"]["y"],
+        landmarks["jaw_l"]["x"], landmarks["jaw_l"]["y"],
+        landmarks["jaw_r"]["x"], landmarks["jaw_r"]["y"],
+    )
+
+    cursor.execute(query, values)
+    conn.commit()
+    inserted_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+    return inserted_id
+
+
+#### output data of frame recomendation
+
+def insert_frame_recommendation(face_id, frame_result):
+    if face_id is None:
+        raise ValueError("❌ face_id (face_analysis_id) is None. Cannot insert recommendation.")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = """
+        INSERT INTO frame_recommendation (
+            face_analysis_id, recommended_frame, recommended_color, reasoning_summary
+        ) VALUES (%s, %s, %s, %s)
+    """
+
+    values = (
+        face_id,
+        frame_result["recommended_frame"],
+        ", ".join(frame_result["recommended_color"]),
+        "\n".join(frame_result["reasoning summary"]),
+    )
+
+    cursor.execute(query, values)
+    conn.commit()
+    cursor.close()
+    conn.close()
