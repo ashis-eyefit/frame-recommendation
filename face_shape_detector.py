@@ -176,24 +176,25 @@ def insert_face_data(face_data):
     """
 
     landmarks = face_data["landmarks"]
-    values = (
-        face_data["face_shape"],
-        face_data["face_width"],
-        face_data["face_height"],
-        face_data["aspect_ratio"],
-        face_data["jaw_width"],
-        face_data["cheekbone_width"],
-        face_data["forehead_width"],
-        face_data["eye_distance"],
-        face_data["jawline_angle"],
-        face_data["pitch_angle"],
-        face_data["roll_angle"],
-        face_data["skin_tone"],
-        landmarks["chin"]["x"], landmarks["chin"]["y"],
-        landmarks["forehead"]["x"], landmarks["forehead"]["y"],
-        landmarks["jaw_l"]["x"], landmarks["jaw_l"]["y"],
-        landmarks["jaw_r"]["x"], landmarks["jaw_r"]["y"],
+    values = values = (
+        str(face_data["face_shape"]),
+        float(face_data["face_width"]),
+        float(face_data["face_height"]),
+        float(face_data["aspect_ratio"]),
+        float(face_data["jaw_width"]),
+        float(face_data["cheekbone_width"]),
+        float(face_data["forehead_width"]),
+        float(face_data["eye_distance"]),
+        float(face_data["jawline_angle"]),
+        float(face_data["pitch_angle"]),
+        float(face_data["roll_angle"]),
+        str(face_data["skin_tone"]),
+        float(landmarks["chin"]["x"]), float(landmarks["chin"]["y"]),
+        float(landmarks["forehead"]["x"]), float(landmarks["forehead"]["y"]),
+        float(landmarks["jaw_l"]["x"]), float(landmarks["jaw_l"]["y"]),
+        float(landmarks["jaw_r"]["x"]), float(landmarks["jaw_r"]["y"]),
     )
+
 
     cursor.execute(query, values)
     conn.commit()
